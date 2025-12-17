@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable, Sequence
+import warnings
 
 import torch
 from torch import Tensor, nn
@@ -108,12 +109,20 @@ class ReplicatedModel(nn.Module):
         self.projection = nn.Linear(config.cnn_channels[-1], config.embedding_dim)
         self.position = SinusoidalPositionalEncoding(config.embedding_dim, dropout=config.dropout)
 
+        normalized_activation = activation_name.lower()
+        if normalized_activation not in {"relu", "gelu"}:
+            warnings.warn(
+                "Transformer encoder only supports 'relu' or 'gelu'; "
+                f"falling back to 'gelu' for activation '{activation_name}'."
+            )
+            normalized_activation = "gelu"
+
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=config.embedding_dim,
             nhead=config.num_heads,
             dim_feedforward=config.transformer_mlp_dim,
             dropout=config.dropout,
-            activation=config.activation,
+            activation=normalized_activation,
             batch_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.depth)
